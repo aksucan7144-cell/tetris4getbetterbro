@@ -22,7 +22,7 @@ canvas { border: 2px solid #333; background-color: #111; box-shadow: 0px 0px 15p
     </div>
 </div>
 <button class="btn" onclick="resetGame()">Oyunu Başlat / Yeniden Başlat</button>
-<div style="font-size: 12px; color: #aaa; margin-top: 8px;">Kontroller: A/D (Sol/Sağ) | W (Yavaş Düşür) | S (Zank Diye Yapıştır) | Ok Tuşları (Döndür)</div>
+<div style="font-size: 12px; color: #aaa; margin-top: 8px;">Kontroller: A/D (Sol/Sağ) | W (Hızlı Soft Drop) | S (Zank Diye Yapıştır) | Ok Tuşları (Döndür)</div>
 
 <script>
 const canvas = document.getElementById('tetris');
@@ -59,6 +59,7 @@ const player = { pos: {x: 0, y: 0}, matrix: null, next: null };
 let dropCounter = 0, dropInterval = 500, lastTime = 0, startTime = 0, gameOver = false, linesCleared = 0, animationId;
 let keys = {};
 let moveTimer = 0;
+let softDropTimer = 0;
 
 function playerReset() {
     if (!player.next) {
@@ -178,11 +179,8 @@ function draw() {
     drawMatrix(context, arena, {x: 0, y: 0});
     
     if (player.matrix) {
-        // Hayalet Parça (Ghost Piece) - Yarı saydam
         const ghostY = getGhostY();
         drawMatrix(context, player.matrix, {x: player.pos.x, y: ghostY}, 0.25);
-        
-        // Aktif Parça
         drawMatrix(context, player.matrix, player.pos, 1.0);
     }
     
@@ -198,57 +196,5 @@ function update(time = 0) {
     if (gameOver) return;
     const deltaTime = time - lastTime; lastTime = time;
     dropCounter += deltaTime;
-    if (dropCounter > dropInterval) playerDrop();
     
-    if (keys['a'] || keys['A']) {
-        moveTimer += deltaTime;
-        if (moveTimer > 50) { playerMove(-1); moveTimer = 0; }
-    } else if (keys['d'] || keys['D']) {
-        moveTimer += deltaTime;
-        if (moveTimer > 50) { playerMove(1); moveTimer = 0; }
-    }
-
-    document.getElementById('time').innerText = ((Date.now() - startTime) / 1000).toFixed(1);
-    draw();
-    animationId = requestAnimationFrame(update);
-}
-
-function resetGame() {
-    arena.forEach(row => row.fill(0));
-    player.next = null;
-    playerReset();
-    linesCleared = 0;
-    document.getElementById('lines').innerText = 0;
-    startTime = Date.now();
-    gameOver = false;
-    lastTime = performance.now();
-    cancelAnimationFrame(animationId);
-    update();
-}
-
-document.addEventListener('keydown', event => {
-    if (gameOver) return;
-    if (!keys[event.key]) {
-        if (event.key === 'a' || event.key === 'A') { playerMove(-1); moveTimer = 0; }
-        else if (event.key === 'd' || event.key === 'D') { playerMove(1); moveTimer = 0; }
-        else if (event.key === 'w' || event.key === 'W') playerDrop();
-        else if (event.key === 's' || event.key === 'S') playerHardDrop();
-        else if (event.key === 'ArrowLeft') playerRotate(-1);
-        else if (event.key === 'ArrowRight') playerRotate(1);
-    }
-    keys[event.key] = true;
-    if (event.key === 'F4') { event.preventDefault(); resetGame(); }
-});
-
-document.addEventListener('keyup', event => {
-    keys[event.key] = false;
-});
-
-window.onload = function() {
-    window.focus();
-    document.body.focus();
-    resetGame();
-};
-</script>
-</body>
-</html>
+    // Normal düşüş hızı veya W tuşuna basılı tutarken ultra
