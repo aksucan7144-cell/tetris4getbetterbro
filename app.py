@@ -1,7 +1,7 @@
 import streamlit as st
+import time
 from groq import Groq
 
-# Sayfa Yapılandırması
 st.set_page_config(page_title="Tetris 10-Line Sprint & AI Coach", page_icon="🕹️", layout="wide")
 
 st.title("🕹️ Jstris Style 10-Line Sprint & AI Koçu")
@@ -48,6 +48,9 @@ try:
         tetris_html = tetris_html.replace("const IS_MOBILE = false;", "const IS_MOBILE = false;")
         tetris_html = tetris_html.replace("CONTROLLER_TEXT_PLACEHOLDER", "Kontroller: A/D (DAS) | W (Soft Drop) | S (Hard Drop) | Shift (Depo) | Ok Tuşları (Döndür) | <b>F4 (Oyunu Sıfırla)</b>")
         iframe_height = 520
+
+    # Cache'i kırmak için HTML sonuna dinamik timestamp ekliyoruz
+    tetris_html += f"\n<!-- cache_buster: {time.time()} -->"
 
     st.components.v1.html(tetris_html, height=iframe_height)
 except Exception as e:
