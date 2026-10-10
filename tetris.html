@@ -150,11 +150,23 @@ function rotate(matrix, dir) {
     if (dir > 0) matrix.forEach(row => row.reverse()); else matrix.reverse();
 }
 
-function drawMatrix(ctx, matrix, offset) {
+function drawMatrix(ctx, matrix, offset, alpha = 1.0) {
     if (!matrix) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
     matrix.forEach((row, y) => {
         row.forEach((value, x) => { if (value !== 0) { ctx.fillStyle = colors[value]; ctx.fillRect(x + offset.x, y + offset.y, 1, 1); } });
     });
+    ctx.restore();
+}
+
+function getGhostY() {
+    if (!player.matrix) return player.pos.y;
+    let ghostY = player.pos.y;
+    while (!collide(arena, {matrix: player.matrix, pos: {x: player.pos.x, y: ghostY + 1}})) {
+        ghostY++;
+    }
+    return ghostY;
 }
 
 function draw() {
@@ -164,15 +176,21 @@ function draw() {
     for(let j=0; j<20; j++) { context.beginPath(); context.moveTo(0,j); context.lineTo(10,j); context.stroke(); }
     
     drawMatrix(context, arena, {x: 0, y: 0});
+    
     if (player.matrix) {
-        drawMatrix(context, player.matrix, player.pos);
+        // Hayalet Parça (Ghost Piece) - Yarı saydam
+        const ghostY = getGhostY();
+        drawMatrix(context, player.matrix, {x: player.pos.x, y: ghostY}, 0.25);
+        
+        // Aktif Parça
+        drawMatrix(context, player.matrix, player.pos, 1.0);
     }
     
     nextContext.fillStyle = '#111'; nextContext.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
     if (player.next) {
         const offsetX = (5 - player.next[0].length) / 2;
         const offsetY = (5 - player.next.length) / 2;
-        drawMatrix(nextContext, player.next, {x: offsetX, y: offsetY});
+        drawMatrix(nextContext, player.next, {x: offsetX, y: offsetY}, 1.0);
     }
 }
 
