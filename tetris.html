@@ -44,7 +44,7 @@ canvas { border: 2px solid #333; background-color: #111; box-shadow: 0px 0px 15p
 <div id="controller-info" style="font-size: 11px; color: #aaa; margin-top: 8px;">CONTROLLER_TEXT_PLACEHOLDER</div>
 
 <script>
-const IS_MOBILE = false; // Python burayı otomatik güncelleyecek
+const IS_MOBILE = false; 
 
 if (IS_MOBILE) {
     document.getElementById('touch-controls').style.display = 'flex';
@@ -333,7 +333,7 @@ function draw() {
         const ox = (3.5 - holdMat[0].length) / 2;
         const oy = (3.5 - holdMat.length) / 2;
         let alphaVal = player.holdAllowed ? 1.0 : 0.4;
-        drawMatrix(holdCtx, holdMat, {x: ox, y: oy}, alphaVal);
+        drawMatrix(holdCtx, holdMat, {x: ox, y: oy}, 1.0);
     }
 }
 
@@ -380,4 +380,53 @@ function resetGame() {
     gameOver = false;
     startTime = Date.now();
     lastTime = performance.now();
-    if
+    if (animationId) cancelAnimationFrame(animationId);
+    playerReset();
+    update();
+}
+
+document.addEventListener('keydown', event => {
+    if (event.key === 'F4') {
+        event.preventDefault();
+        resetGame();
+        return;
+    }
+    if (gameOver) return;
+
+    if (!keys[event.key]) {
+        if (event.key === 'a' || event.key === 'A') {
+            playerMove(-1);
+            activeDir = -1;
+            dasTimer = 0;
+            moveTimer = 0;
+        } else if (event.key === 'd' || event.key === 'D') {
+            playerMove(1);
+            activeDir = 1;
+            dasTimer = 0;
+            moveTimer = 0;
+        } else if (event.key === 's' || event.key === 'S') {
+            playerHardDrop();
+        } else if (event.key === 'Shift') {
+            event.preventDefault();
+            playerHold();
+        } else if (event.key === 'ArrowLeft') {
+            playerRotate(-1);
+        } else if (event.key === 'ArrowRight') {
+            playerRotate(1);
+        }
+    }
+    keys[event.key] = true;
+});
+
+document.addEventListener('keyup', event => {
+    if (event.key === 'a' || event.key === 'A' || event.key === 'd' || event.key === 'D') {
+        if ((event.key === 'a' || event.key === 'A') && activeDir === -1) activeDir = 0;
+        if ((event.key === 'd' || event.key === 'D') && activeDir === 1) activeDir = 0;
+    }
+    keys[event.key] = false;
+});
+
+resetGame();
+</script>
+</body>
+</html>
