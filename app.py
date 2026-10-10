@@ -16,11 +16,11 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-# HTML dosyasını harici okuyoruz (Sıfır Syntax Hatası)
+# HTML dosyasını okuyup ekrana basıyoruz
 try:
     with open("tetris.html", "r", encoding="utf-8") as f:
         tetris_html = f.read()
-    st.components.v1.html(tetris_html, height=530)
+    st.components.v1.html(tetris_html, height=550)
 except Exception as e:
     st.error(f"tetris.html okunamadı: {e}")
 
@@ -31,7 +31,7 @@ st.markdown("Maçını bitirdikten sonra süreni ve yaptığın hataları aşağ
 with st.form(key="coach_form"):
     match_stats = st.text_area(
         "Maç İstatistiklerin / Notların:", 
-        placeholder="Örn: 10 satırı 22 saniyede bitirdim, A ve D yağ gibi kayıyor..."
+        placeholder="Örn: 10 satırı 22 saniyede bitirdim, taşlar süper geliyor..."
     )
     analyze_button = st.form_submit_button("🏆 Koçtan Analiz Al", use_container_width=True)
 
