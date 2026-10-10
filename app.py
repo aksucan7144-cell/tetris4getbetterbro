@@ -16,7 +16,7 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-# Jstris Tarzı Gelişmiş Arayüz ve Kontroller
+# Jstris Tarzı Gelişmiş Arayüz ve DAS (Anında Akıcı Hareket) Kontrolleri
 tetris_html = (
     "<!DOCTYPE html><html><head><style>"
     "body { background-color: #0e1117; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 10px; }"
@@ -37,7 +37,7 @@ tetris_html = (
     "</div>"
     "</div>"
     "<button class='btn' onclick='resetGame()'>Oyunu Başlat / Yeniden Başlat</button>"
-    "<div style='font-size: 12px; color: #aaa; margin-top: 8px;'>Kontroller: A/D (Sol/Sağ) | W (Yavaş Düşür) | S (Zank Diye Yapıştır) | Ok Tuşları (Döndür)</div>"
+    "<div style='font-size: 12px; color: #aaa; margin-top: 8px;'>Kontroller: A/D (Sol/Sağ - Akıcı) | W (Yavaş Düşür) | S (Zank Diye Yapıştır) | Ok Tuşları (Döndür)</div>"
     "<script>"
     "const canvas = document.getElementById('tetris');"
     "const context = canvas.getContext('2d');"
@@ -61,6 +61,8 @@ tetris_html = (
     "const arena = createMatrix(10, 20);"
     "const player = { pos: {x: 0, y: 0}, matrix: null, next: null };"
     "let dropCounter = 0, dropInterval = 500, lastTime = 0, startTime = 0, gameOver = true, linesCleared = 0, animationId;"
+    "let keys = {};"
+    "let moveTimer = 0;"
     "function playerReset() {"
     "    if (!player.next) {"
     "        const pieces = 'TJLOSZI';"
@@ -129,97 +131,3 @@ tetris_html = (
     "    while (collide(arena, player)) {"
     "        player.pos.x += offset; offset = -(offset + (offset > 0 ? 1 : -1));"
     "        if (offset > player.matrix[0].length) { rotate(player.matrix, -dir); player.pos.x = posX; return; }"
-    "    }"
-    "}"
-    "function rotate(matrix, dir) {"
-    "    for (let y = 0; y < matrix.length; ++y) {"
-    "        for (let x = 0; x < y; ++x) { let t = matrix[y][x]; matrix[y][x] = matrix[x][y]; matrix[x][y] = t; }"
-    "    }"
-    "    if (dir > 0) matrix.forEach(row => row.reverse()); else matrix.reverse();"
-    "}"
-    "function drawMatrix(ctx, matrix, offset) {"
-    "    matrix.forEach((row, y) => {"
-    "        row.forEach((value, x) => { if (value !== 0) { ctx.fillStyle = colors[value]; ctx.fillRect(x + offset.x, y + offset.y, 1, 1); } });"
-    "    });"
-    "}"
-    "function draw() {"
-    "    context.fillStyle = '#111'; context.fillRect(0, 0, canvas.width, canvas.height);"
-    "    context.strokeStyle = '#222'; context.lineWidth = 0.05;"
-    "    for(let i=0; i<10; i++) { context.beginPath(); context.moveTo(i,0); context.lineTo(i,20); context.stroke(); }"
-    "    for(let j=0; j<20; j++) { context.beginPath(); context.moveTo(0,j); context.lineTo(10,j); context.stroke(); }"
-    "    drawMatrix(context, arena, {x: 0, y: 0});"
-    "    drawMatrix(context, player.matrix, player.pos);"
-    "    nextContext.fillStyle = '#111'; nextContext.fillRect(0, 0, nextCanvas.width, nextCanvas.height);"
-    "    if (player.next) {"
-    "        const offsetX = (5 - player.next[0].length) / 2;"
-    "        const offsetY = (5 - player.next.length) / 2;"
-    "        drawMatrix(nextContext, player.next, {x: offsetX, y: offsetY});"
-    "    }"
-    "}"
-    "function update(time = 0) {"
-    "    if (gameOver) return;"
-    "    const deltaTime = time - lastTime; lastTime = time;"
-    "    dropCounter += deltaTime;"
-    "    if (dropCounter > dropInterval) playerDrop();"
-    "    document.getElementById('time').innerText = ((Date.now() - startTime) / 1000).toFixed(1);"
-    "    draw();"
-    "    animationId = requestAnimationFrame(update);"
-    "}"
-    "function resetGame() {"
-    "    arena.forEach(row => row.fill(0));"
-    "    player.next = null;"
-    "    playerReset();"
-    "    linesCleared = 0;"
-    "    document.getElementById('lines').innerText = 0;"
-    "    startTime = Date.now();"
-    "    gameOver = false;"
-    "    lastTime = performance.now();"
-    "    cancelAnimationFrame(animationId);"
-    "    update();"
-    "}"
-    "document.addEventListener('keydown', event => {"
-    "    if (gameOver) return;"
-    "    if (event.key === 'a' || event.key === 'A') playerMove(-1);"
-    "    else if (event.key === 'd' || event.key === 'D') playerMove(1);"
-    "    else if (event.key === 'w' || event.key === 'W') playerDrop();"
-    "    else if (event.key === 's' || event.key === 'S') playerHardDrop();"
-    "    else if (event.key === 'ArrowLeft') playerRotate(-1);"
-    "    else if (event.key === 'ArrowRight') playerRotate(1);"
-    "    else if (event.key === 'F4') { event.preventDefault(); resetGame(); }"
-    "});"
-    "</script></body></html>"
-)
-
-st.components.v1.html(tetris_html, height=530)
-
-st.markdown("---")
-st.subheader("🧠 Yapay Zeka E-Spor Koçu Analizi")
-st.markdown("Maçını bitirdikten sonra süreni ve yaptığın hataları aşağıya yaz, koç seni acımasızca analiz etsin!")
-
-with st.form(key="coach_form"):
-    match_stats = st.text_area(
-        "Maç İstatistiklerin / Notların:", 
-        placeholder="Örn: 10 satırı 28 saniyede bitirdim, S tuşuyla hızlı düşürürken yanlış yere koydum..."
-    )
-    analyze_button = st.form_submit_button("🏆 Koçtan Analiz Al", use_container_width=True)
-
-if analyze_button and match_stats.strip() != "":
-    with st.spinner("Koç replikleri hazırlıyor, veriler inceleniyor..."):
-        prompt = f"""
-        Sen sert, disiplinli, profesyonel bir e-spor Tetris koçusun. Oyuncunun 10 line sprint maçı sonrasında verdiği istatistikler/notlar şunlar:
-        "{match_stats}"
-        
-        Oyuncuya profesyonel bir koç gibi yaklaş; yaptığı hataları yüzüne vur, süre kasması için net taktikler ver, parça yerleşimi hakkında tavsiyelerde bulun. Samimi, enerjik ama otoriter bir e-spor dili kullan.
-        """
-        
-        try:
-            response = client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model="openai/gpt-oss-20b",
-            )
-            coach_reply = response.choices[0].message.content
-            
-            st.success("Koç raporu onayladı!")
-            st.markdown(f"### 🎙️ Koçun Değerlendirmesi:\n\n{coach_reply}")
-        except Exception as e:
-            st.error(f"Analiz sırasında bir hata oluştu: {e}")
