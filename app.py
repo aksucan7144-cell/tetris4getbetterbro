@@ -6,7 +6,6 @@ st.set_page_config(page_title="Tetris 10-Line Sprint & AI Coach", page_icon="�
 
 st.title("🕹️ Jstris Style 10-Line Sprint & AI Koçu")
 
-# Oyun başlamadan önce cihaz seçimi (key ekleyerek anında tetiklenmesini sağlıyoruz)
 device_choice = st.radio(
     "📱 Hangi cihazdan oynuyorsun?",
     ("Masaüstü (PC)", "Mobil (Telefon / Tablet)"),
@@ -37,16 +36,14 @@ if not is_mobile:
 else:
     st.info("📱 Mobil mod aktif: Dokunmatik kontrol butonları etkinleştirildi, AI desteği gizlendi.")
 
-# tetris.html dosyasını okuyup mobil durumunu doğrudan HTML içine işliyoruz
 try:
     with open("tetris.html", "r", encoding="utf-8") as f:
         tetris_html = f.read()
     
-    # HTML içindeki bayrağı ve kontroller yazısını cihaza göre güncelliyoruz
     if is_mobile:
         tetris_html = tetris_html.replace("const IS_MOBILE = false;", "const IS_MOBILE = true;")
         tetris_html = tetris_html.replace("CONTROLLER_TEXT_PLACEHOLDER", "Dokunmatik Butonları Kullanın | F4: Oyunu Sıfırla")
-        iframe_height = 680  # Mobilde butonlar sığsın diye boyu artırıyoruz
+        iframe_height = 680
     else:
         tetris_html = tetris_html.replace("const IS_MOBILE = false;", "const IS_MOBILE = false;")
         tetris_html = tetris_html.replace("CONTROLLER_TEXT_PLACEHOLDER", "Kontroller: A/D (DAS) | W (Soft Drop) | S (Hard Drop) | Shift (Depo) | Ok Tuşları (Döndür) | <b>F4 (Oyunu Sıfırla)</b>")
@@ -56,7 +53,6 @@ try:
 except Exception as e:
     st.error(f"tetris.html okunamadı: {e}")
 
-# Sadece Masaüstü ve AI seçildiyse koç analiz formu görünür
 if not is_mobile and ai_choice and "Evet" in ai_choice:
     st.markdown("---")
     st.subheader("🧠 Yapay Zeka E-Spor Koçu Analizi")
