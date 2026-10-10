@@ -3,26 +3,31 @@
 <head>
 <style>
 body { background-color: #0e1117; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 10px; overflow: hidden; }
-#game-container { display: flex; justify-content: center; align-items: flex-start; gap: 20px; margin-top: 10px; }
+#game-container { display: flex; justify-content: center; align-items: flex-start; gap: 15px; margin-top: 10px; }
 canvas { border: 2px solid #333; background-color: #111; box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.5); }
-#sidebar-panel { display: flex; flex-direction: column; align-items: center; text-align: left; }
-.preview-box { border: 2px solid #333; background-color: #111; margin-bottom: 10px; }
+.side-panel { display: flex; flex-direction: column; align-items: center; text-align: left; }
+.preview-box { border: 2px solid #333; background-color: #111; margin-bottom: 10px; width: 100px; height: 100px; }
 #stats { font-size: 16px; margin-top: 10px; font-weight: bold; color: #ccc; }
 .btn { background-color: #ff4b4b; color: white; border: none; padding: 10px 20px; font-size: 16px; cursor: pointer; margin-top: 10px; border-radius: 5px; font-weight: bold; }
 .btn:hover { background-color: #ff2222; }
+.label { font-size: 13px; margin-bottom: 4px; color: #888; font-weight: bold; }
 </style>
 </head>
 <body tabindex="0">
 <div id="game-container">
+    <div class="side-panel">
+        <div class="label">DEPO (HOLD)</div>
+        <canvas id="hold" class="preview-box" width="100" height="100"></canvas>
+    </div>
     <div><canvas id="tetris" width="200" height="400"></canvas></div>
-    <div id="sidebar-panel">
-        <div style="font-size: 14px; margin-bottom: 5px; color: #888;">SONRAKİ</div>
+    <div class="side-panel">
+        <div class="label">SONRAKİ</div>
         <canvas id="next" class="preview-box" width="100" height="100"></canvas>
         <div id="stats">Satır: <span id="lines">0</span>/10<br>Süre: <span id="time">0.0</span>s</div>
     </div>
 </div>
 <button class="btn" onclick="resetGame()">Oyunu Başlat / Yeniden Başlat</button>
-<div style="font-size: 12px; color: #aaa; margin-top: 8px;">Kontroller: A/D (Ultra Hızlı DAS) | W (Hızlı Soft Drop) | S (Zank Yapıştır) | Ok Tuşları (Döndür)</div>
+<div style="font-size: 12px; color: #aaa; margin-top: 8px;">Kontroller: A/D (Ultra Hızlı DAS) | W (Soft Drop) | S (Zank Yapıştır) | Shift (Depo) | Ok Tuşları (Döndür)</div>
 
 <script>
 const canvas = document.getElementById('tetris');
@@ -32,6 +37,10 @@ context.scale(20, 20);
 const nextCanvas = document.getElementById('next');
 const nextContext = nextCanvas.getContext('2d');
 nextContext.scale(20, 20);
+
+const holdCanvas = document.getElementById('hold');
+const holdContext = holdCanvas.getContext('2d');
+holdContext.scale(20, 20);
 
 function createMatrix(w, h) {
     const matrix = []; while (h--) { matrix.push(new Array(w).fill(0)); } return matrix;
@@ -54,15 +63,15 @@ function getRandomPiece() {
 
 const colors = [null, '#FF0d72', '#0dc2ff', '#0dff72', '#f538ff', '#ff8e0d', '#ffe138', '#3877ff'];
 const arena = createMatrix(10, 20);
-const player = { pos: {x: 0, y: 0}, matrix: null, next: null };
+const player = { pos: {x: 0, y: 0}, matrix: null, next: null, hold: null, holdUsed: false, type: null, holdType: null };
 
 let dropCounter = 0, dropInterval = 500, lastTime = 0, startTime = 0, gameOver = false, linesCleared = 0, animationId;
 let keys = {};
 let moveTimer = 0;
 let softDropTimer = 0;
-let dasInitialDelay = 110; // İlk basıştan sonra kaymaya başlama süresi (ms)
-let dasRepeatRate = 20;    // Kaymaya başladıktan sonraki ardışık hız (ms)
-let activeDir = 0;         // -1: Sol, 1: Sağ, 0: Yok
+let dasInitialDelay = 110;
+let dasRepeatRate = 20;
+let activeDir = 0;
 let dasTimer = 0;
 
 function playerReset() {
@@ -73,11 +82,30 @@ function playerReset() {
     player.next = getRandomPiece();
     player.pos.y = 0;
     player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
+    player.holdUsed = false;
     
     if (collide(arena, player)) {
         arena.forEach(row => row.fill(0));
         gameOver = true;
     }
+}
+
+function playerHold() {
+    if (player.holdUsed) return; // Tur başına sadece 1 kez depolama hakkı
+    
+    // Mevcut parça tipini bulmak için matrise bakıyoruz veya basitçe type saklayabiliriz
+    // Şimdilik matrix içeriğine göre eşleşen tip veya geçici hold sistemi:
+    if (player.hold === null) {
+        player.hold = player.matrix;
+        playerReset();
+    } else {
+        let temp = player.matrix;
+        player.matrix = player.hold;
+        player.hold = temp;
+        player.pos.y = 0;
+        player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
+    }
+    player.holdUsed = true;
 }
 
 function collide(arena, player) {
@@ -188,11 +216,21 @@ function draw() {
         drawMatrix(context, player.matrix, player.pos, 1.0);
     }
     
+    // Sonraki Parça
     nextContext.fillStyle = '#111'; nextContext.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
     if (player.next) {
         const offsetX = (5 - player.next[0].length) / 2;
         const offsetY = (5 - player.next.length) / 2;
         drawMatrix(nextContext, player.next, {x: offsetX, y: offsetY}, 1.0);
+    }
+
+    // Depo (Hold) Parçası
+    holdContext.fillStyle = '#111'; holdContext.fillRect(0, 0, holdCanvas.width, holdCanvas.height);
+    if (player.hold) {
+        const offsetX = (5 - player.hold[0].length) / 2;
+        const offsetY = (5 - player.hold.length) / 2;
+        let alphaVal = player.holdUsed ? 0.4 : 1.0;
+        drawMatrix(holdContext, player.hold, {x: offsetX, y: offsetY}, alphaVal);
     }
 }
 
@@ -213,4 +251,15 @@ function update(time = 0) {
         }
     }
     
-    // Profesyonel DAS (Delayed Auto Shift) Mantığı
+    if (activeDir !== 0) {
+        dasTimer += deltaTime;
+        if (dasTimer > dasInitialDelay) {
+            moveTimer += deltaTime;
+            if (moveTimer > dasRepeatRate) {
+                playerMove(activeDir);
+                moveTimer = 0;
+            }
+        }
+    }
+
+    document.getElementById('time').innerText = ((Date.now() - startTime)
