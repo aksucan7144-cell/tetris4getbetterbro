@@ -144,7 +144,6 @@ tetris_html = (
     "}"
     "function draw() {"
     "    context.fillStyle = '#111'; context.fillRect(0, 0, canvas.width, canvas.height);"
-    "    // Grid çizgileri çizimi"
     "    context.strokeStyle = '#222'; context.lineWidth = 0.05;"
     "    for(let i=0; i<10; i++) { context.beginPath(); context.moveTo(i,0); context.lineTo(i,20); context.stroke(); }"
     "    for(let j=0; j<20; j++) { context.beginPath(); context.moveTo(0,j); context.lineTo(10,j); context.stroke(); }"
@@ -223,4 +222,4 @@ if analyze_button and match_stats.strip() != "":
             st.success("Koç raporu onayladı!")
             st.markdown(f"### 🎙️ Koçun Değerlendirmesi:\n\n{coach_reply}")
         except Exception as e:
-            st.error(f
+            st.error(f"Analiz sırasında bir hata oluştu: {e}")
