@@ -27,7 +27,7 @@ canvas { border: 2px solid #333; background-color: #111; box-shadow: 0px 0px 15p
     </div>
 </div>
 <button class="btn" onclick="resetGame()">Oyunu Başlat / Yeniden Başlat</button>
-<div style="font-size: 12px; color: #aaa; margin-top: 8px;">Kontroller: A/D (Ultra Hızlı DAS) | W (Soft Drop) | S (Zank Yapıştır) | Shift (Depo) | Ok Tuşları (Döndür)</div>
+<div style="font-size: 12px; color: #aaa; margin-top: 8px;">Kontroller: A/D (DAS) | W (Soft Drop) | S (Zank Yapıştır) | Shift (Depo) | Ok Tuşları (Döndür)</div>
 
 <script>
 const canvas = document.getElementById('tetris');
@@ -56,14 +56,23 @@ function createPiece(type) {
     if (type === 'Z') return [[7, 7, 0], [0, 7, 7], [0, 0, 0]];
 }
 
-function getRandomPiece() {
+function getRandomPieceType() {
     const pieces = 'TJLOSZI';
-    return createPiece(pieces[Math.floor(Math.random() * pieces.length)]);
+    return pieces[Math.floor(Math.random() * pieces.length)];
 }
 
 const colors = [null, '#FF0d72', '#0dc2ff', '#0dff72', '#f538ff', '#ff8e0d', '#ffe138', '#3877ff'];
 const arena = createMatrix(10, 20);
-const player = { pos: {x: 0, y: 0}, matrix: null, next: null, hold: null, holdUsed: false, type: null, holdType: null };
+
+const player = {
+    pos: {x: 0, y: 0},
+    matrix: null,
+    type: null,
+    next: null,
+    hold: null,
+    holdType: null,
+    holdUsed: false
+};
 
 let dropCounter = 0, dropInterval = 500, lastTime = 0, startTime = 0, gameOver = false, linesCleared = 0, animationId;
 let keys = {};
@@ -76,10 +85,12 @@ let dasTimer = 0;
 
 function playerReset() {
     if (!player.next) {
-        player.next = getRandomPiece();
+        player.next = getRandomPieceType();
     }
-    player.matrix = player.next;
-    player.next = getRandomPiece();
+    player.type = player.next;
+    player.matrix = createPiece(player.type);
+    player.next = getRandomPieceType();
+    
     player.pos.y = 0;
     player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
     player.holdUsed = false;
@@ -91,17 +102,19 @@ function playerReset() {
 }
 
 function playerHold() {
-    if (player.holdUsed) return; // Tur başına sadece 1 kez depolama hakkı
+    if (player.holdUsed) return;
     
-    // Mevcut parça tipini bulmak için matrise bakıyoruz veya basitçe type saklayabiliriz
-    // Şimdilik matrix içeriğine göre eşleşen tip veya geçici hold sistemi:
-    if (player.hold === null) {
-        player.hold = player.matrix;
+    if (player.holdType === null) {
+        player.holdType = player.type;
+        player.hold = createPiece(player.holdType);
         playerReset();
     } else {
-        let temp = player.matrix;
-        player.matrix = player.hold;
-        player.hold = temp;
+        let tempType = player.type;
+        player.type = player.holdType;
+        player.matrix = createPiece(player.type);
+        player.holdType = tempType;
+        player.hold = createPiece(player.holdType);
+        
         player.pos.y = 0;
         player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
     }
@@ -203,63 +216,4 @@ function getGhostY() {
 }
 
 function draw() {
-    context.fillStyle = '#111'; context.fillRect(0, 0, canvas.width, canvas.height);
-    context.strokeStyle = '#222'; context.lineWidth = 0.05;
-    for(let i=0; i<10; i++) { context.beginPath(); context.moveTo(i,0); context.lineTo(i,20); context.stroke(); }
-    for(let j=0; j<20; j++) { context.beginPath(); context.moveTo(0,j); context.lineTo(10,j); context.stroke(); }
-    
-    drawMatrix(context, arena, {x: 0, y: 0});
-    
-    if (player.matrix) {
-        const ghostY = getGhostY();
-        drawMatrix(context, player.matrix, {x: player.pos.x, y: ghostY}, 0.25);
-        drawMatrix(context, player.matrix, player.pos, 1.0);
-    }
-    
-    // Sonraki Parça
-    nextContext.fillStyle = '#111'; nextContext.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
-    if (player.next) {
-        const offsetX = (5 - player.next[0].length) / 2;
-        const offsetY = (5 - player.next.length) / 2;
-        drawMatrix(nextContext, player.next, {x: offsetX, y: offsetY}, 1.0);
-    }
-
-    // Depo (Hold) Parçası
-    holdContext.fillStyle = '#111'; holdContext.fillRect(0, 0, holdCanvas.width, holdCanvas.height);
-    if (player.hold) {
-        const offsetX = (5 - player.hold[0].length) / 2;
-        const offsetY = (5 - player.hold.length) / 2;
-        let alphaVal = player.holdUsed ? 0.4 : 1.0;
-        drawMatrix(holdContext, player.hold, {x: offsetX, y: offsetY}, alphaVal);
-    }
-}
-
-function update(time = 0) {
-    if (gameOver) return;
-    const deltaTime = time - lastTime; lastTime = time;
-    
-    if (keys['w'] || keys['W']) {
-        softDropTimer += deltaTime;
-        if (softDropTimer > 20) {
-            playerDrop();
-            softDropTimer = 0;
-        }
-    } else {
-        dropCounter += deltaTime;
-        if (dropCounter > dropInterval) {
-            playerDrop();
-        }
-    }
-    
-    if (activeDir !== 0) {
-        dasTimer += deltaTime;
-        if (dasTimer > dasInitialDelay) {
-            moveTimer += deltaTime;
-            if (moveTimer > dasRepeatRate) {
-                playerMove(activeDir);
-                moveTimer = 0;
-            }
-        }
-    }
-
-    document.getElementById('time').innerText = ((Date.now() - startTime)
+    context.fillStyle = '#111'; context.fillRect(0, 0, canvas.width, canvas
