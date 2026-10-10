@@ -3,31 +3,70 @@
 <head>
 <meta charset="utf-8">
 <style>
-body { background-color: #0e1117; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 10px; overflow: hidden; }
-#game-container { display: flex; justify-content: center; align-items: flex-start; gap: 15px; margin-top: 10px; }
+body { background-color: #0e1117; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 5px; overflow: hidden; }
+#game-container { display: flex; justify-content: center; align-items: flex-start; gap: 15px; margin-top: 5px; }
 canvas { border: 2px solid #333; background-color: #111; box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.5); }
 .side-panel { display: flex; flex-direction: column; align-items: center; text-align: left; }
-.preview-box { border: 2px solid #333; background-color: #111; margin-bottom: 5px; width: 80px; height: 80px; }
-#stats { font-size: 15px; margin-top: 10px; font-weight: bold; color: #ccc; }
-.label { font-size: 12px; margin-bottom: 3px; color: #888; font-weight: bold; }
+.preview-box { border: 2px solid #333; background-color: #111; margin-bottom: 5px; width: 70px; height: 70px; }
+#stats { font-size: 14px; margin-top: 5px; font-weight: bold; color: #ccc; }
+.label { font-size: 11px; margin-bottom: 2px; color: #888; font-weight: bold; }
+
+/* Mobil Dokunmatik Tuşlar */
+#touch-controls { display: none; margin-top: 8px; gap: 6px; justify-content: center; flex-wrap: wrap; max-width: 320px; margin-left: auto; margin-right: auto; }
+.t-btn { background-color: #1f242d; color: white; border: 1px solid #444; padding: 10px 12px; font-size: 13px; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1 1 30%; user-select: none; box-shadow: 0px 3px 5px rgba(0,0,0,0.3); }
+.t-btn:active { background-color: #ff4b4b; border-color: #ff4b4b; transform: scale(0.95); }
 </style>
 </head>
 <body tabindex="0">
 <div id="game-container">
     <div class="side-panel">
         <div class="label">DEPO</div>
-        <canvas id="hold" width="80" height="80"></canvas>
+        <canvas id="hold" width="70" height="70"></canvas>
     </div>
     <div><canvas id="tetris" width="200" height="400"></canvas></div>
     <div class="side-panel">
         <div class="label">SONRAKİ</div>
-        <canvas id="next" width="80" height="80"></canvas>
+        <canvas id="next" width="70" height="70"></canvas>
         <div id="stats">Satır: <span id="lines">0</span>/10<br>Süre: <span id="time">0.0</span>s</div>
     </div>
 </div>
-<div style="font-size: 12px; color: #aaa; margin-top: 12px;">Kontroller: A/D (DAS) | W (Soft Drop) | S (Hard Drop) | Shift (Depo) | Ok Tuşları (Döndür) | <b>F4 (Oyunu Sıfırla)</b></div>
+
+<!-- Mobil Dokunmatik Tuş Paneli -->
+<div id="touch-controls">
+    <button class="t-btn" onclick="handleTouch('hold')">📦 DEPO</button>
+    <button class="t-btn" onclick="handleTouch('rotate')">🔄 ÇEVİR</button>
+    <button class="t-btn" onclick="handleTouch('hard')">⚡ DÜŞÜR</button>
+    <button class="t-btn" onclick="handleTouch('left')">◀️ SOL</button>
+    <button class="t-btn" onclick="handleTouch('soft')">⬇️ HIZLI İNDİR</button>
+    <button class="t-btn" onclick="handleTouch('right')">▶️ SAĞ</button>
+</div>
+
+<div id="controller-info" style="font-size: 11px; color: #aaa; margin-top: 8px;">CONTROLLER_TEXT_PLACEHOLDER</div>
 
 <script>
+const IS_MOBILE = false; // Python burayı otomatik güncelleyecek
+
+if (IS_MOBILE) {
+    document.getElementById('touch-controls').style.display = 'flex';
+}
+
+function handleTouch(action) {
+    if (gameOver) return;
+    if (action === 'left') {
+        playerMove(-1);
+    } else if (action === 'right') {
+        playerMove(1);
+    } else if (action === 'soft') {
+        playerDrop();
+    } else if (action === 'hard') {
+        playerHardDrop();
+    } else if (action === 'rotate') {
+        playerRotate(1);
+    } else if (action === 'hold') {
+        playerHold();
+    }
+}
+
 const canvas = document.getElementById('tetris');
 const ctx = canvas.getContext('2d');
 ctx.scale(20, 20);
@@ -282,8 +321,8 @@ function draw() {
     nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
     if (player.next) {
         const nextMat = createPiece(player.next);
-        const ox = (4 - nextMat[0].length) / 2;
-        const oy = (4 - nextMat.length) / 2;
+        const ox = (3.5 - nextMat[0].length) / 2;
+        const oy = (3.5 - nextMat.length) / 2;
         drawMatrix(nextCtx, nextMat, {x: ox, y: oy}, 1.0);
     }
 
@@ -291,8 +330,8 @@ function draw() {
     holdCtx.fillRect(0, 0, holdCanvas.width, holdCanvas.height);
     if (player.hold) {
         const holdMat = createPiece(player.hold);
-        const ox = (4 - holdMat[0].length) / 2;
-        const oy = (4 - holdMat.length) / 2;
+        const ox = (3.5 - holdMat[0].length) / 2;
+        const oy = (3.5 - holdMat.length) / 2;
         let alphaVal = player.holdAllowed ? 1.0 : 0.4;
         drawMatrix(holdCtx, holdMat, {x: ox, y: oy}, alphaVal);
     }
@@ -327,7 +366,7 @@ function update(time = 0) {
         }
     }
 
-    document.getElementById('time').innerText = ((Date.now() - startTime) / 1000).toFixed(1);
+    document.getElementById('time').innerText = ((Date.now() - startTime) / 1000).Divider ? ... : ((Date.now() - startTime) / 1000).toFixed(1);
     draw();
     animationId = requestAnimationFrame(update);
 }
@@ -337,7 +376,7 @@ function resetGame() {
     player.next = null;
     player.hold = null;
     linesCleared = 0;
-    document.getElementById('lines').innerText = 0;
+    document.getElementById('lines').innerText = linesCleared;
     gameOver = false;
     startTime = Date.now();
     lastTime = performance.now();
@@ -387,7 +426,6 @@ document.addEventListener('keyup', event => {
     keys[event.key] = false;
 });
 
-// Sayfa yüklendiği an direkt oyun başlar
 resetGame();
 </script>
 </body>
