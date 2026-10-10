@@ -5,34 +5,53 @@ from groq import Groq
 st.set_page_config(page_title="Tetris 10-Line Sprint & AI Coach", page_icon="🕹️", layout="wide")
 
 st.title("🕹️ Jstris Style 10-Line Sprint & AI Koçu")
-st.markdown("10 satırı en kısa sürede temizle, F4 ile yeniden başlat!")
 
-# AI Yardım Tercihi
-ai_choice = st.radio(
-    "🤖 AI yardımı ister misin?",
-    ("Hayır (Normal Tetris)", "Evet (AI E-Spor Koçu)"),
+# Oyun başlamadan önce cihaz seçimi
+device_choice = st.radio(
+    "📱 Hangi cihazdan oynuyorsun?",
+    ("Masaüstü (PC)", "Mobil (Telefon / Tablet)"),
     horizontal=True
 )
-st.caption("(Seçersen API isteyecek, seçmezsek normal Tetris oynayacaksın)")
+
+is_mobile = "Mobil" in device_choice
 
 client = None
-if "Evet" in ai_choice:
-    api_key = st.sidebar.text_input("Groq API Key", type="password")
-    if api_key:
-        client = Groq(api_key=api_key)
-    else:
-        st.sidebar.warning("AI analizi için kenar çubuğundan Groq API anahtarınızı girin.")
+ai_choice = None
 
-# Kaydettiğin kusursuz tetris.html dosyasını ekrana basıyoruz
+if not is_mobile:
+    ai_choice = st.radio(
+        "🤖 AI yardımı ister misin?",
+        ("Hayır (Normal Tetris)", "Evet (AI E-Spor Koçu)"),
+        horizontal=True
+    )
+    st.caption("(Seçersen API isteyecek, seçmezsek normal Tetris oynayacaksın)")
+    
+    if "Evet" in ai_choice:
+        api_key = st.sidebar.text_input("Groq API Key", type="password")
+        if api_key:
+            client = Groq(api_key=api_key)
+        else:
+            st.sidebar.warning("AI analizi için kenar çubuğundan Groq API anahtarınızı girin.")
+else:
+    st.info("📱 Mobil mod aktif: Dokunmatik kontrol butonları etkinleştirildi, AI desteği gizlendi.")
+
+# tetris.html dosyasını okuyup mobil mod bayrağını (flag) Python ile enjekte ediyoruz
 try:
     with open("tetris.html", "r", encoding="utf-8") as f:
         tetris_html = f.read()
-    st.components.v1.html(tetris_html, height=520)
+    
+    # Mobil durumu JavaScript tarafına aktarılıyor
+    mobile_flag = "true" if is_mobile else "false"
+    tetris_html = tetris_html.replace("const IS_MOBILE = false;", f"const IS_MOBILE = {mobile_flag};")
+    
+    # Mobilde butonlar için iframe yüksekliğini biraz daha fazla veriyoruz
+    iframe_height = 720 if is_mobile else 530
+    st.components.v1.html(tetris_html, height=iframe_height)
 except Exception as e:
     st.error(f"tetris.html okunamadı: {e}")
 
-# Sadece AI seçildiyse koç analiz formunu göster
-if "Evet" in ai_choice:
+# Sadece Masaüstü ve AI seçildiyse koç analiz formu görünür
+if not is_mobile and ai_choice and "Evet" in ai_choice:
     st.markdown("---")
     st.subheader("🧠 Yapay Zeka E-Spor Koçu Analizi")
     st.markdown("Maçını bitirdikten sonra süreni ve yaptığın hataları aşağıya yaz, koç seni acımasızca analiz etsin!")
@@ -65,5 +84,3 @@ if "Evet" in ai_choice:
                     st.error(f"Analiz sırasında bir hata oluştu: {e}")
         else:
             st.warning("Lütfen sol kenar çubuğundan Groq API anahtarınızı girin.")
-else:
-    st.info("🎮 Normal Tetris modundasın. Keyifle oynayabilirsin! İstediğin zaman yukarıdan AI desteğini açabilirsin.")
