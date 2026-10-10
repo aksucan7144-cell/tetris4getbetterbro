@@ -6,11 +6,12 @@ st.set_page_config(page_title="Tetris 10-Line Sprint & AI Coach", page_icon="�
 
 st.title("🕹️ Jstris Style 10-Line Sprint & AI Koçu")
 
-# Oyun başlamadan önce cihaz seçimi
+# Oyun başlamadan önce cihaz seçimi (key ekleyerek anında tetiklenmesini sağlıyoruz)
 device_choice = st.radio(
     "📱 Hangi cihazdan oynuyorsun?",
     ("Masaüstü (PC)", "Mobil (Telefon / Tablet)"),
-    horizontal=True
+    horizontal=True,
+    key="device_selector"
 )
 
 is_mobile = "Mobil" in device_choice
@@ -22,7 +23,8 @@ if not is_mobile:
     ai_choice = st.radio(
         "🤖 AI yardımı ister misin?",
         ("Hayır (Normal Tetris)", "Evet (AI E-Spor Koçu)"),
-        horizontal=True
+        horizontal=True,
+        key="ai_selector"
     )
     st.caption("(Seçersen API isteyecek, seçmezsek normal Tetris oynayacaksın)")
     
@@ -35,17 +37,21 @@ if not is_mobile:
 else:
     st.info("📱 Mobil mod aktif: Dokunmatik kontrol butonları etkinleştirildi, AI desteği gizlendi.")
 
-# tetris.html dosyasını okuyup mobil mod bayrağını (flag) Python ile enjekte ediyoruz
+# tetris.html dosyasını okuyup mobil durumunu doğrudan HTML içine işliyoruz
 try:
     with open("tetris.html", "r", encoding="utf-8") as f:
         tetris_html = f.read()
     
-    # Mobil durumu JavaScript tarafına aktarılıyor
-    mobile_flag = "true" if is_mobile else "false"
-    tetris_html = tetris_html.replace("const IS_MOBILE = false;", f"const IS_MOBILE = {mobile_flag};")
-    
-    # Mobilde butonlar için iframe yüksekliğini biraz daha fazla veriyoruz
-    iframe_height = 720 if is_mobile else 530
+    # HTML içindeki bayrağı ve kontroller yazısını cihaza göre güncelliyoruz
+    if is_mobile:
+        tetris_html = tetris_html.replace("const IS_MOBILE = false;", "const IS_MOBILE = true;")
+        tetris_html = tetris_html.replace("CONTROLLER_TEXT_PLACEHOLDER", "Dokunmatik Butonları Kullanın | F4: Oyunu Sıfırla")
+        iframe_height = 680  # Mobilde butonlar sığsın diye boyu artırıyoruz
+    else:
+        tetris_html = tetris_html.replace("const IS_MOBILE = false;", "const IS_MOBILE = false;")
+        tetris_html = tetris_html.replace("CONTROLLER_TEXT_PLACEHOLDER", "Kontroller: A/D (DAS) | W (Soft Drop) | S (Hard Drop) | Shift (Depo) | Ok Tuşları (Döndür) | <b>F4 (Oyunu Sıfırla)</b>")
+        iframe_height = 520
+
     st.components.v1.html(tetris_html, height=iframe_height)
 except Exception as e:
     st.error(f"tetris.html okunamadı: {e}")
