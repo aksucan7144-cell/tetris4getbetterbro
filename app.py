@@ -16,118 +16,42 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-# Jstris Tarzı Gelişmiş Arayüz ve DAS (Anında Akıcı Hareket) Kontrolleri
-tetris_html = (
-    "<!DOCTYPE html><html><head><style>"
-    "body { background-color: #0e1117; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 10px; }"
-    "#game-container { display: flex; justify-content: center; align-items: flex-start; gap: 20px; margin-top: 10px; }"
-    "canvas { border: 2px solid #333; background-color: #111; box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.5); }"
-    "#sidebar-panel { display: flex; flex-direction: column; align-items: center; text-align: left; }"
-    ".preview-box { border: 2px solid #333; background-color: #111; margin-bottom: 10px; }"
-    "#stats { font-size: 16px; margin-top: 10px; font-weight: bold; color: #ccc; }"
-    ".btn { background-color: #ff4b4b; color: white; border: none; padding: 10px 20px; font-size: 16px; cursor: pointer; margin-top: 10px; border-radius: 5px; font-weight: bold; }"
-    ".btn:hover { background-color: #ff2222; }"
-    "</style></head><body>"
-    "<div id='game-container'>"
-    "<div><canvas id='tetris' width='200' height='400'></canvas></div>"
-    "<div id='sidebar-panel'>"
-    "<div style='font-size: 14px; margin-bottom: 5px; color: #888;'>SONRAKİ</div>"
-    "<canvas id='next' class='preview-box' width='100' height='100'></canvas>"
-    "<div id='stats'>Satır: <span id='lines'>0</span>/10<br>Süre: <span id='time'>0.0</span>s</div>"
-    "</div>"
-    "</div>"
-    "<button class='btn' onclick='resetGame()'>Oyunu Başlat / Yeniden Başlat</button>"
-    "<div style='font-size: 12px; color: #aaa; margin-top: 8px;'>Kontroller: A/D (Sol/Sağ - Akıcı) | W (Yavaş Düşür) | S (Zank Diye Yapıştır) | Ok Tuşları (Döndür)</div>"
-    "<script>"
-    "const canvas = document.getElementById('tetris');"
-    "const context = canvas.getContext('2d');"
-    "context.scale(20, 20);"
-    "const nextCanvas = document.getElementById('next');"
-    "const nextContext = nextCanvas.getContext('2d');"
-    "nextContext.scale(20, 20);"
-    "function createMatrix(w, h) {"
-    "    const matrix = []; while (h--) { matrix.push(new Array(w).fill(0)); } return matrix;"
-    "}"
-    "function createPiece(type) {"
-    "    if (type === 'T') return [[0, 1, 0], [1, 1, 1], [0, 0, 0]];"
-    "    if (type === 'O') return [[2, 2], [2, 2]];"
-    "    if (type === 'L') return [[0, 0, 3], [3, 3, 3], [0, 0, 0]];"
-    "    if (type === 'J') return [[4, 0, 0], [4, 4, 4], [0, 0, 0]];"
-    "    if (type === 'I') return [[0, 5, 0, 0], [0, 5, 0, 0], [0, 5, 0, 0], [0, 5, 0, 0]];"
-    "    if (type === 'S') return [[0, 6, 6], [6, 6, 0], [0, 0, 0]];"
-    "    if (type === 'Z') return [[7, 7, 0], [0, 7, 7], [0, 0, 0]];"
-    "}"
-    "const colors = [null, '#FF0d72', '#0dc2ff', '#0dff72', '#f538ff', '#ff8e0d', '#ffe138', '#3877ff'];"
-    "const arena = createMatrix(10, 20);"
-    "const player = { pos: {x: 0, y: 0}, matrix: null, next: null };"
-    "let dropCounter = 0, dropInterval = 500, lastTime = 0, startTime = 0, gameOver = true, linesCleared = 0, animationId;"
-    "let keys = {};"
-    "let moveTimer = 0;"
-    "function playerReset() {"
-    "    if (!player.next) {"
-    "        const pieces = 'TJLOSZI';"
-    "        player.next = createPiece(pieces[Math.floor(Math.random() * pieces.length)]);"
-    "    }"
-    "    player.matrix = player.next;"
-    "    const pieces = 'TJLOSZI';"
-    "    player.next = createPiece(pieces[Math.floor(Math.random() * pieces.length)]);"
-    "    player.pos.y = 0;"
-    "    player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);"
-    "    if (collide(arena, player)) { arena.forEach(row => row.fill(0)); gameOver = true; }"
-    "}"
-    "function collide(arena, player) {"
-    "    const m = player.matrix; const o = player.pos;"
-    "    for (let y = 0; y < m.length; ++y) {"
-    "        for (let x = 0; x < m[y].length; ++x) {"
-    "            if (m[y][x] !== 0 && (arena[y + o.y] && arena[y + o.y][x + o.x]) !== 0) return true;"
-    "        }"
-    "    }"
-    "    return false;"
-    "}"
-    "function merge(arena, player) {"
-    "    player.matrix.forEach((row, y) => {"
-    "        row.forEach((value, x) => { if (value !== 0) arena[y + player.pos.y][x + player.pos.x] = value; });"
-    "    });"
-    "}"
-    "function arenaSweep() {"
-    "    outer: for (let y = arena.length - 1; y > 0; --y) {"
-    "        for (let x = 0; x < arena[y].length; ++x) { if (arena[y][x] === 0) continue outer; }"
-    "        const row = arena.splice(y, 1)[0].fill(0);"
-    "        arena.unshift(row);"
-    "        ++y;"
-    "        linesCleared++;"
-    "        document.getElementById('lines').innerText = linesCleared;"
-    "        if (linesCleared >= 10 && !gameOver) {"
-    "            gameOver = true;"
-    "            cancelAnimationFrame(animationId);"
-    "            alert('Tebrikler! 10 satırı tamamladın. Süre: ' + ((Date.now() - startTime)/1000).toFixed(1) + ' saniye.');"
-    "        }"
-    "    }"
-    "}"
-    "function playerDrop() {"
-    "    player.pos.y++;"
-    "    if (collide(arena, player)) {"
-    "        player.pos.y--;"
-    "        merge(arena, player);"
-    "        playerReset();"
-    "        arenaSweep();"
-    "    }"
-    "    dropCounter = 0;"
-    "}"
-    "function playerHardDrop() {"
-    "    while (!collide(arena, player)) { player.pos.y++; }"
-    "    player.pos.y--;"
-    "    merge(arena, player);"
-    "    playerReset();"
-    "    arenaSweep();"
-    "    dropCounter = 0;"
-    "}"
-    "function playerMove(dir) {"
-    "    player.pos.x += dir; if (collide(arena, player)) player.pos.x -= dir;"
-    "}"
-    "function playerRotate(dir) {"
-    "    const posX = player.pos.x; let offset = 1;"
-    "    rotate(player.matrix, dir);"
-    "    while (collide(arena, player)) {"
-    "        player.pos.x += offset; offset = -(offset + (offset > 0 ? 1 : -1));"
-    "        if (offset > player.matrix[0].length) { rotate(player.matrix, -dir); player.pos.x = posX; return; }"
+# HTML dosyasını harici okuyoruz (Sıfır Syntax Hatası)
+try:
+    with open("tetris.html", "r", encoding="utf-8") as f:
+        tetris_html = f.read()
+    st.components.v1.html(tetris_html, height=530)
+except Exception as e:
+    st.error(f"tetris.html okunamadı: {e}")
+
+st.markdown("---")
+st.subheader("🧠 Yapay Zeka E-Spor Koçu Analizi")
+st.markdown("Maçını bitirdikten sonra süreni ve yaptığın hataları aşağıya yaz, koç seni acımasızca analiz etsin!")
+
+with st.form(key="coach_form"):
+    match_stats = st.text_area(
+        "Maç İstatistiklerin / Notların:", 
+        placeholder="Örn: 10 satırı 22 saniyede bitirdim, A ve D yağ gibi kayıyor..."
+    )
+    analyze_button = st.form_submit_button("🏆 Koçtan Analiz Al", use_container_width=True)
+
+if analyze_button and match_stats.strip() != "":
+    with st.spinner("Koç replikleri hazırlıyor, veriler inceleniyor..."):
+        prompt = f"""
+        Sen sert, disiplinli, profesyonel bir e-spor Tetris koçusun. Oyuncunun 10 line sprint maçı sonrasında verdiği istatistikler/notlar şunlar:
+        "{match_stats}"
+        
+        Oyuncuya profesyonel bir koç gibi yaklaş; yaptığı hataları yüzüne vur, süre kasması için net taktikler ver, parça yerleşimi hakkında tavsiyelerde bulun. Samimi, enerjik ama otoriter bir e-spor dili kullan.
+        """
+        
+        try:
+            response = client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model="openai/gpt-oss-20b",
+            )
+            coach_reply = response.choices[0].message.content
+            
+            st.success("Koç raporu onayladı!")
+            st.markdown(f"### 🎙️ Koçun Değerlendirmesi:\n\n{coach_reply}")
+        except Exception as e:
+            st.error(f"Analiz sırasında bir hata oluştu: {e}")
