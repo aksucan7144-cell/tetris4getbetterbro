@@ -4,11 +4,10 @@ from groq import Groq
 # Sayfa Yapılandırması
 st.set_page_config(page_title="Tetris 10-Line Sprint & AI Coach", page_icon="🕹️", layout="wide")
 
-st.title("🕹️ Tetris 10-Line Sprint & AI Koçu")
+st.title("🕹️ Jstris Style 10-Line Sprint & AI Koçu")
 st.markdown("10 satırı en kısa sürede temizle, istatistiklerini al ve yapay zeka e-spor koçundan profesyonel analiz kap!")
 
 # Kenar Çubuğu (API Anahtarı)
-st.sidebar.header("⚙️ Konfigürasyon")
 api_key = st.sidebar.text_input("Groq API Key", type="password")
 
 if not api_key:
@@ -17,22 +16,191 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-# Harici HTML dosyasını okuyup Streamlit'e basıyoruz
-try:
-    with open("tetris.html", "r", encoding="utf-8") as f:
-        tetris_html = f.read()
-    st.components.v1.html(tetris_html, height=530)
-except FileNotFoundError:
-    st.error("Hata: tetris.html dosyası bulunamadı! Lütfen GitHub reposuna tetris.html dosyasını ekleyin.")
+# Jstris Tarzı Gelişmiş Arayüz ve Kontroller
+tetris_html = (
+    "<!DOCTYPE html><html><head><style>"
+    "body { background-color: #0e1117; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 10px; }"
+    "#game-container { display: flex; justify-content: center; align-items: flex-start; gap: 20px; margin-top: 10px; }"
+    "canvas { border: 2px solid #333; background-color: #111; box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.5); }"
+    "#sidebar-panel { display: flex; flex-direction: column; align-items: center; text-align: left; }"
+    ".preview-box { border: 2px solid #333; background-color: #111; margin-bottom: 10px; }"
+    "#stats { font-size: 16px; margin-top: 10px; font-weight: bold; color: #ccc; }"
+    ".btn { background-color: #ff4b4b; color: white; border: none; padding: 10px 20px; font-size: 16px; cursor: pointer; margin-top: 10px; border-radius: 5px; font-weight: bold; }"
+    ".btn:hover { background-color: #ff2222; }"
+    "</style></head><body>"
+    "<div id='game-container'>"
+    "<div><canvas id='tetris' width='200' height='400'></canvas></div>"
+    "<div id='sidebar-panel'>"
+    "<div style='font-size: 14px; margin-bottom: 5px; color: #888;'>SONRAKİ</div>"
+    "<canvas id='next' class='preview-box' width='100' height='100'></canvas>"
+    "<div id='stats'>Satır: <span id='lines'>0</span>/10<br>Süre: <span id='time'>0.0</span>s</div>"
+    "</div>"
+    "</div>"
+    "<button class='btn' onclick='resetGame()'>Oyunu Başlat / Yeniden Başlat</button>"
+    "<div style='font-size: 12px; color: #aaa; margin-top: 8px;'>Kontroller: A/D (Sol/Sağ) | W (Yavaş Düşür) | S (Zank Diye Yapıştır) | Ok Tuşları (Döndür)</div>"
+    "<script>"
+    "const canvas = document.getElementById('tetris');"
+    "const context = canvas.getContext('2d');"
+    "context.scale(20, 20);"
+    "const nextCanvas = document.getElementById('next');"
+    "const nextContext = nextCanvas.getContext('2d');"
+    "nextContext.scale(20, 20);"
+    "function createMatrix(w, h) {"
+    "    const matrix = []; while (h--) { matrix.push(new Array(w).fill(0)); } return matrix;"
+    "}"
+    "function createPiece(type) {"
+    "    if (type === 'T') return [[0, 1, 0], [1, 1, 1], [0, 0, 0]];"
+    "    if (type === 'O') return [[2, 2], [2, 2]];"
+    "    if (type === 'L') return [[0, 0, 3], [3, 3, 3], [0, 0, 0]];"
+    "    if (type === 'J') return [[4, 0, 0], [4, 4, 4], [0, 0, 0]];"
+    "    if (type === 'I') return [[0, 5, 0, 0], [0, 5, 0, 0], [0, 5, 0, 0], [0, 5, 0, 0]];"
+    "    if (type === 'S') return [[0, 6, 6], [6, 6, 0], [0, 0, 0]];"
+    "    if (type === 'Z') return [[7, 7, 0], [0, 7, 7], [0, 0, 0]];"
+    "}"
+    "const colors = [null, '#FF0d72', '#0dc2ff', '#0dff72', '#f538ff', '#ff8e0d', '#ffe138', '#3877ff'];"
+    "const arena = createMatrix(10, 20);"
+    "const player = { pos: {x: 0, y: 0}, matrix: null, next: null };"
+    "let dropCounter = 0, dropInterval = 500, lastTime = 0, startTime = 0, gameOver = true, linesCleared = 0, animationId;"
+    "function playerReset() {"
+    "    if (!player.next) {"
+    "        const pieces = 'TJLOSZI';"
+    "        player.next = createPiece(pieces[Math.floor(Math.random() * pieces.length)]);"
+    "    }"
+    "    player.matrix = player.next;"
+    "    const pieces = 'TJLOSZI';"
+    "    player.next = createPiece(pieces[Math.floor(Math.random() * pieces.length)]);"
+    "    player.pos.y = 0;"
+    "    player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);"
+    "    if (collide(arena, player)) { arena.forEach(row => row.fill(0)); gameOver = true; }"
+    "}"
+    "function collide(arena, player) {"
+    "    const m = player.matrix; const o = player.pos;"
+    "    for (let y = 0; y < m.length; ++y) {"
+    "        for (let x = 0; x < m[y].length; ++x) {"
+    "            if (m[y][x] !== 0 && (arena[y + o.y] && arena[y + o.y][x + o.x]) !== 0) return true;"
+    "        }"
+    "    }"
+    "    return false;"
+    "}"
+    "function merge(arena, player) {"
+    "    player.matrix.forEach((row, y) => {"
+    "        row.forEach((value, x) => { if (value !== 0) arena[y + player.pos.y][x + player.pos.x] = value; });"
+    "    });"
+    "}"
+    "function arenaSweep() {"
+    "    outer: for (let y = arena.length - 1; y > 0; --y) {"
+    "        for (let x = 0; x < arena[y].length; ++x) { if (arena[y][x] === 0) continue outer; }"
+    "        const row = arena.splice(y, 1)[0].fill(0);"
+    "        arena.unshift(row);"
+    "        ++y;"
+    "        linesCleared++;"
+    "        document.getElementById('lines').innerText = linesCleared;"
+    "        if (linesCleared >= 10 && !gameOver) {"
+    "            gameOver = true;"
+    "            cancelAnimationFrame(animationId);"
+    "            alert('Tebrikler! 10 satırı tamamladın. Süre: ' + ((Date.now() - startTime)/1000).toFixed(1) + ' saniye.');"
+    "        }"
+    "    }"
+    "}"
+    "function playerDrop() {"
+    "    player.pos.y++;"
+    "    if (collide(arena, player)) {"
+    "        player.pos.y--;"
+    "        merge(arena, player);"
+    "        playerReset();"
+    "        arenaSweep();"
+    "    }"
+    "    dropCounter = 0;"
+    "}"
+    "function playerHardDrop() {"
+    "    while (!collide(arena, player)) { player.pos.y++; }"
+    "    player.pos.y--;"
+    "    merge(arena, player);"
+    "    playerReset();"
+    "    arenaSweep();"
+    "    dropCounter = 0;"
+    "}"
+    "function playerMove(dir) {"
+    "    player.pos.x += dir; if (collide(arena, player)) player.pos.x -= dir;"
+    "}"
+    "function playerRotate(dir) {"
+    "    const posX = player.pos.x; let offset = 1;"
+    "    rotate(player.matrix, dir);"
+    "    while (collide(arena, player)) {"
+    "        player.pos.x += offset; offset = -(offset + (offset > 0 ? 1 : -1));"
+    "        if (offset > player.matrix[0].length) { rotate(player.matrix, -dir); player.pos.x = posX; return; }"
+    "    }"
+    "}"
+    "function rotate(matrix, dir) {"
+    "    for (let y = 0; y < matrix.length; ++y) {"
+    "        for (let x = 0; x < y; ++x) { let t = matrix[y][x]; matrix[y][x] = matrix[x][y]; matrix[x][y] = t; }"
+    "    }"
+    "    if (dir > 0) matrix.forEach(row => row.reverse()); else matrix.reverse();"
+    "}"
+    "function drawMatrix(ctx, matrix, offset) {"
+    "    matrix.forEach((row, y) => {"
+    "        row.forEach((value, x) => { if (value !== 0) { ctx.fillStyle = colors[value]; ctx.fillRect(x + offset.x, y + offset.y, 1, 1); } });"
+    "    });"
+    "}"
+    "function draw() {"
+    "    context.fillStyle = '#111'; context.fillRect(0, 0, canvas.width, canvas.height);"
+    "    // Grid çizgileri çizimi"
+    "    context.strokeStyle = '#222'; context.lineWidth = 0.05;"
+    "    for(let i=0; i<10; i++) { context.beginPath(); context.moveTo(i,0); context.lineTo(i,20); context.stroke(); }"
+    "    for(let j=0; j<20; j++) { context.beginPath(); context.moveTo(0,j); context.lineTo(10,j); context.stroke(); }"
+    "    drawMatrix(context, arena, {x: 0, y: 0});"
+    "    drawMatrix(context, player.matrix, player.pos);"
+    "    nextContext.fillStyle = '#111'; nextContext.fillRect(0, 0, nextCanvas.width, nextCanvas.height);"
+    "    if (player.next) {"
+    "        const offsetX = (5 - player.next[0].length) / 2;"
+    "        const offsetY = (5 - player.next.length) / 2;"
+    "        drawMatrix(nextContext, player.next, {x: offsetX, y: offsetY});"
+    "    }"
+    "}"
+    "function update(time = 0) {"
+    "    if (gameOver) return;"
+    "    const deltaTime = time - lastTime; lastTime = time;"
+    "    dropCounter += deltaTime;"
+    "    if (dropCounter > dropInterval) playerDrop();"
+    "    document.getElementById('time').innerText = ((Date.now() - startTime) / 1000).toFixed(1);"
+    "    draw();"
+    "    animationId = requestAnimationFrame(update);"
+    "}"
+    "function resetGame() {"
+    "    arena.forEach(row => row.fill(0));"
+    "    player.next = null;"
+    "    playerReset();"
+    "    linesCleared = 0;"
+    "    document.getElementById('lines').innerText = 0;"
+    "    startTime = Date.now();"
+    "    gameOver = false;"
+    "    lastTime = performance.now();"
+    "    cancelAnimationFrame(animationId);"
+    "    update();"
+    "}"
+    "document.addEventListener('keydown', event => {"
+    "    if (gameOver) return;"
+    "    if (event.key === 'a' || event.key === 'A') playerMove(-1);"
+    "    else if (event.key === 'd' || event.key === 'D') playerMove(1);"
+    "    else if (event.key === 'w' || event.key === 'W') playerDrop();"
+    "    else if (event.key === 's' || event.key === 'S') playerHardDrop();"
+    "    else if (event.key === 'ArrowLeft') playerRotate(-1);"
+    "    else if (event.key === 'ArrowRight') playerRotate(1);"
+    "    else if (event.key === 'F4') { event.preventDefault(); resetGame(); }"
+    "});"
+    "</script></body></html>"
+)
+
+st.components.v1.html(tetris_html, height=530)
 
 st.markdown("---")
 st.subheader("🧠 Yapay Zeka E-Spor Koçu Analizi")
-st.markdown("Maçını bitirdikten sonra süreni ve yaptığın hataları (veya nasıl oynadığını) aşağıya yaz, koç seni acımasızca analiz etsin!")
+st.markdown("Maçını bitirdikten sonra süreni ve yaptığın hataları aşağıya yaz, koç seni acımasızca analiz etsin!")
 
 with st.form(key="coach_form"):
     match_stats = st.text_area(
         "Maç İstatistiklerin / Notların:", 
-        placeholder="Örn: 10 satırı 32 saniyede bitirdim ama ortada boşluk bıraktım..."
+        placeholder="Örn: 10 satırı 28 saniyede bitirdim, S tuşuyla hızlı düşürürken yanlış yere koydum..."
     )
     analyze_button = st.form_submit_button("🏆 Koçtan Analiz Al", use_container_width=True)
 
@@ -55,4 +223,4 @@ if analyze_button and match_stats.strip() != "":
             st.success("Koç raporu onayladı!")
             st.markdown(f"### 🎙️ Koçun Değerlendirmesi:\n\n{coach_reply}")
         except Exception as e:
-            st.error(f"Analiz sırasında bir hata oluştu: {e}")
+            st.error(f
